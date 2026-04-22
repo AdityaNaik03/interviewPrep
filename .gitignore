@@ -1,0 +1,20 @@
+# Environment variables — NEVER commit the real .env
+.env
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+frontend/dist/
+frontend/.vite/
+
+# Logs
+*.log
+api_error_log.txt
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
