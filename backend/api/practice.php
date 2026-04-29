@@ -12,6 +12,12 @@ if (!isset($_SESSION['user_id'])) {
 $action = $_GET['action'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if ($action === 'all') {
+        $data = get_all_practice_data();
+        echo json_encode(['success' => true, 'data' => $data]);
+        exit();
+    }
+
     if ($action === 'subjects') {
         $subjects = get_all_subjects();
         echo json_encode(['success' => true, 'subjects' => $subjects]);

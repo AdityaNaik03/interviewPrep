@@ -14,7 +14,8 @@ const Interview = () => {
   const [timeLeft, setTimeLeft] = useState(120);
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
-  const streamRef = useRef(null);
+  const baseAnswerRef = useRef('');
+  const sessionFinalTranscriptRef = useRef('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,17 +23,8 @@ const Interview = () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       if (recognitionRef.current) recognitionRef.current.stop();
-      if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
     };
   }, []);
-
-  const handleVideoMount = (node) => {
-    if (node && streamRef.current) {
-      if (node.srcObject !== streamRef.current) {
-        node.srcObject = streamRef.current;
-      }
-    }
-  };
 
   const speakQuestion = (text) => {
     if ('speechSynthesis' in window) {
@@ -60,13 +52,6 @@ const Interview = () => {
   const startInterview = async (selectedType) => {
     setType(selectedType);
     setLoading(true);
-    
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      streamRef.current = stream;
-    } catch (err) {
-      console.error("Camera access denied or missing", err);
-    }
     
     try {
       const res = await fetch(`http://localhost/smart-ai-interview-prep/backend/api/interview.php?action=questions&type=${selectedType}`, {
@@ -104,12 +89,25 @@ const Interview = () => {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
+    baseAnswerRef.current = answer;
+    sessionFinalTranscriptRef.current = '';
+
     recognition.onresult = (event) => {
-      let currentTranscript = '';
+      let interimTranscript = '';
+      
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        currentTranscript += event.results[i][0].transcript;
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          sessionFinalTranscriptRef.current += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
       }
-      setAnswer(prev => prev + ' ' + currentTranscript);
+
+      const fullTranscript = (sessionFinalTranscriptRef.current + interimTranscript).trim();
+      const prefix = baseAnswerRef.current.trim();
+      
+      setAnswer(prefix + (prefix && fullTranscript ? ' ' : '') + fullTranscript);
     };
 
     recognition.onerror = () => setIsRecording(false);
@@ -331,22 +329,6 @@ const Interview = () => {
             </button>
           </div>
         )}
-        </div>
-        
-        <div className="glass-panel" style={{ flex: '0 0 260px', padding: '1rem' }}>
-          <div style={{ width: '100%', aspectRatio: '4/3', background: '#111', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
-            <video 
-              ref={handleVideoMount} 
-              autoPlay 
-              muted 
-              playsInline 
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} 
-            />
-          </div>
-          <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
-            <div style={{ width: '6px', height: '6px', background: 'var(--danger)', borderRadius: '50%', boxShadow: '0 0 4px var(--danger)' }}></div>
-            Camera Preview
-          </div>
         </div>
       </div>
     </div>

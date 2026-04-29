@@ -8,8 +8,20 @@ function evaluate_answer($question, $user_answer) {
     }
     
     try {
-        // orignal prompt $prompt = "You are an expert technical and HR interviewer. You are evaluating a candidate's answer. The candidate might say random things, try to trick you, or give completely irrelevant answers like 'hello' or gibberish. IF the answer is completely irrelevant, nonsensical, or does not answer the question properly, you MUST give a score of 1 or 2 and explicitly state that it is a wrong/irrelevant answer in the feedback. Otherwise, evaluate it fairly out of 10. Provide a JSON response with a 'score' (int 1-10) and 'feedback' (detailed explanation as string).\n\nQuestion: $question\nAnswer: $user_answer";
-        $prompt = "You are an expert technical and HR interviewer. You are evaluating a candidate's answer. The candidate might say random things, try to trick you, or give completely irrelevant answers like 'hello' or gibberish. IF the answer is completely irrelevant, nonsensical, or does not answer the question properly, you MUST give a score of 0 and explicitly state that it is a wrong/irrelevant answer you shouldn't say that the answer is short and provide more details in the feedback. Otherwise, evaluate it fairly out of 10. Provide a JSON response with a 'score' (int 1-10) and 'feedback' (detailed explanation as string).\n\nQuestion: $question\nAnswer: $user_answer";
+        $prompt = "You are an expert technical and HR interviewer. You are evaluating a candidate's answer. 
+Critical Evaluation Rules:
+1. FOCUS ON CONTEXT AND CORRECTNESS: A short but accurate answer is better than a long, rambling, or incorrect one.
+2. DETECT IRRELEVANCE: If the answer is completely irrelevant, nonsensical (e.g., 'hello', 'test', gibberish), or does not attempt to answer the question, you MUST give a score of 0 and state that the answer is irrelevant.
+3. ABSOLUTELY NO LENGTH BIAS: Do NOT penalize an answer for being short. If it is technically correct and concise, it should receive a high score (8-10). Conversely, a long answer that is incorrect or rambles should receive a low score.
+4. TECHNICAL ACCURACY: For technical questions, verify the accuracy of the concepts mentioned.
+5. FEEDBACK QUALITY: Provide feedback that addresses the technical content of the answer, not its word count.
+
+Provide a JSON response with:
+- 'score': (int 0-10)
+- 'feedback': (detailed explanation of why this score was given, focusing on the quality and accuracy of the content)
+
+Question: $question
+Answer: $user_answer";
         
         $data = array(
             "contents" => array(
@@ -81,54 +93,75 @@ function evaluate_answer($question, $user_answer) {
     }
 }
 
-// Generate feedback based on simple rules
+// Generate feedback based on context and relevance
 function generate_feedback($question, $answer) {
+    $answer = trim($answer);
     $answer_length = strlen($answer);
-    $score = 0;
-    $feedback = "";
     
-    if ($answer_length < 50) {
-        $score = 4;
-        $feedback = "Your answer is too short. Try to provide more details.";
-    } elseif ($answer_length < 150) {
-        $score = 6;
-        $feedback = "Good attempt, but you can provide more comprehensive information.";
-    } elseif ($answer_length < 300) {
-        $score = 8;
-        $feedback = "Great! Your answer is well-detailed and covers the key points.";
-    } else {
-        $score = 9;
-        $feedback = "Excellent! Your answer is comprehensive and well-explained.";
-    }
-    
+    // 1. Basic relevance check
     $keywords = extract_keywords($question);
-    $found_keywords = 0;
-    
+    $found_keywords = [];
     foreach ($keywords as $keyword) {
         if (stripos($answer, $keyword) !== false) {
-            $found_keywords++;
-        }
-    }
-    
-    if ($found_keywords >= 2) {
-        $score = min(10, $score + 1);
-    }
-    
-    return ['score' => $score, 'feedback' => $feedback];
-}
-
-// Extract keywords from question
-function extract_keywords($question) {
-    $common_keywords = ['algorithm', 'structure', 'process', 'method', 'system', 'security', 'performance', 'optimization', 'scalability', 'database', 'network', 'server', 'client', 'API'];
-    
-    $found_keywords = [];
-    foreach ($common_keywords as $keyword) {
-        if (stripos($question, $keyword) !== false) {
             $found_keywords[] = $keyword;
         }
     }
     
-    return count($found_keywords) > 0 ? $found_keywords : ['concept', 'explain'];
+    // If no keywords found and answer is very short, it's likely irrelevant
+    if (count($found_keywords) === 0 && $answer_length < 30) {
+        return [
+            'score' => 0,
+            'feedback' => "Your answer does not seem to address the question. Please provide a relevant and technical response."
+        ];
+    }
+
+    // 2. Determine score based on keyword match and technical content
+    $score = 0;
+    if (count($found_keywords) > 0) {
+        // Base score starts at 6 if at least one keyword is found
+        // Each unique keyword found adds to the score, up to a maximum
+        $score = 6 + min(4, count($found_keywords)); 
+    } else {
+        // No keywords found but the answer isn't tiny - might be a general or conceptual answer
+        $score = 4;
+    }
+    
+    $score = min(10, $score);
+
+    // 3. Detailed feedback based on technical depth, NOT length
+    $feedback = "";
+    if ($score >= 8) {
+        $feedback = "Great job! You correctly identified and explained the core technical concepts" . (count($found_keywords) > 0 ? ", specifically " . implode(', ', array_slice($found_keywords, 0, 3)) : "") . ". Your response shows a good understanding of the subject matter.";
+    } elseif ($score >= 6) {
+        $feedback = "Good attempt. You mentioned " . (count($found_keywords) > 0 ? $found_keywords[0] : "relevant concepts") . ", but could provide more specific technical details or explain the relationships between these concepts more clearly.";
+    } else {
+        $feedback = "Your answer is somewhat vague. To improve, focus on using specific technical terminology related to the question and provide a more structured explanation of the concepts.";
+    }
+    
+    return ['score' => (int)$score, 'feedback' => $feedback];
+}
+
+// Extract keywords from question for relevance checking
+function extract_keywords($question) {
+    $stop_words = ['what', 'is', 'how', 'why', 'the', 'a', 'an', 'and', 'or', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'can', 'you', 'explain', 'describe', 'difference', 'between', 'your', 'tell', 'me'];
+    
+    // Extract words using regex to handle punctuation
+    $words = preg_split('/[\s,?.!]+/', strtolower($question));
+    $keywords = [];
+    
+    foreach ($words as $word) {
+        // Filter out short words and common stop words
+        if (strlen($word) > 3 && !in_array($word, $stop_words)) {
+            $keywords[] = $word;
+        }
+    }
+    
+    // Also include some domain-specific fallback keywords if the list is empty
+    if (empty($keywords)) {
+        return ['concept', 'logic', 'implementation'];
+    }
+    
+    return array_unique($keywords);
 }
 
 // Analyze resume

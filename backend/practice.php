@@ -10,6 +10,20 @@ function get_all_subjects() {
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
+// Get all subjects with their questions
+function get_all_practice_data() {
+    global $conn;
+    $subjects = get_all_subjects();
+    $data = [];
+    
+    foreach ($subjects as $subject) {
+        $subject['questions'] = get_practice_questions($subject['id']);
+        $data[] = $subject;
+    }
+    
+    return $data;
+}
+
 // Get practice questions by subject
 function get_practice_questions($subject_id) {
     global $conn;
