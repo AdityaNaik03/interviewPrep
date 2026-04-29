@@ -1,31 +1,20 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, ArrowRight } from 'lucide-react';
 
 const Register = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirm_password: ''
-  });
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirm_password: '' });
+  const [error, setError]   = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.id]: e.target.value
-    }));
-  };
+  const handleChange = e =>
+    setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
+    setLoading(true); setError(''); setSuccess('');
 
     if (formData.password !== formData.confirm_password) {
       setError('Passwords do not match');
@@ -34,104 +23,104 @@ const Register = () => {
     }
 
     try {
-      const res = await fetch('http://localhost/smart-ai-interview-prep/backend/api/auth.php?action=register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-        credentials: 'include'
-      });
-      
+      const res = await fetch(
+        'http://localhost/smart-ai-interview-prep/backend/api/auth.php?action=register',
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData), credentials: 'include' }
+      );
       const data = await res.json();
-      
+
       if (data.success) {
-        setSuccess('Registration successful! Redirecting to login...');
+        setSuccess('Account created! Redirecting to login…');
         setTimeout(() => navigate('/login'), 2000);
       } else {
         setError(data.message || 'Registration failed');
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred while communicating with the server.');
     } finally {
       setLoading(false);
     }
   };
 
+  const FIELDS = [
+    { id: 'name',             icon: User,  type: 'text',     label: 'Full Name',        placeholder: 'John Doe'         },
+    { id: 'email',            icon: Mail,  type: 'email',    label: 'Email Address',    placeholder: 'you@example.com'  },
+    { id: 'password',         icon: Lock,  type: 'password', label: 'Password',         placeholder: '••••••••', min: 6 },
+    { id: 'confirm_password', icon: Lock,  type: 'password', label: 'Confirm Password', placeholder: '••••••••', min: 6 },
+  ];
+
   return (
     <div className="auth-container">
-      <div className="glass-panel" style={{ padding: '3rem', width: '100%', maxWidth: '440px' }}>
+      {/* Decorative blobs */}
+      <div style={{
+        position: 'fixed', top: '-100px', right: '-80px',
+        width: '400px', height: '400px', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'fixed', bottom: '-100px', left: '-60px',
+        width: '360px', height: '360px', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(79,70,229,0.14) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
+
+      <div className="auth-card">
+        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--secondary)', marginBottom: '1rem' }}>
-            <UserPlus size={32} />
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: '68px', height: '68px', borderRadius: '20px',
+            background: 'linear-gradient(135deg, #059669, #047857)',
+            boxShadow: '0 12px 28px rgba(5,150,105,0.45)',
+            marginBottom: '1.25rem',
+          }}>
+            <UserPlus size={30} color="white" />
           </div>
-          <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Create Account</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Start your AI interview preparation</p>
+          <h1 style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>Create Account</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+            Start your AI interview preparation journey
+          </p>
         </div>
 
-        {error && <div className="error-message" style={{ marginBottom: '1.5rem' }}>{error}</div>}
-        {success && <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--secondary)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>{success}</div>}
+        {error   && <div className="error-message"   style={{ marginBottom: '1.25rem' }}>{error}</div>}
+        {success && <div className="success-message" style={{ marginBottom: '1.25rem' }}>{success}</div>}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="form-group">
-            <label htmlFor="name">Full Name</label>
-            <input 
-              type="text" 
-              id="name" 
-              className="form-control" 
-              value={formData.name}
-              onChange={handleChange}
-              required 
-              placeholder="John Doe"
-            />
-          </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+          {FIELDS.map(({ id, icon: Icon, type, label, placeholder, min }) => (
+            <div className="form-group" key={id}>
+              <label htmlFor={id}>{label}</label>
+              <div style={{ position: 'relative' }}>
+                <Icon size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type={type} id={id} className="form-control"
+                  value={formData[id]} onChange={handleChange}
+                  required placeholder={placeholder}
+                  minLength={min}
+                  style={{ paddingLeft: '2.5rem' }}
+                />
+              </div>
+            </div>
+          ))}
 
-          <div className="form-group">
-            <label htmlFor="email">Email Address</label>
-            <input 
-              type="email" 
-              id="email" 
-              className="form-control" 
-              value={formData.email}
-              onChange={handleChange}
-              required 
-              placeholder="you@example.com"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input 
-              type="password" 
-              id="password" 
-              className="form-control" 
-              value={formData.password}
-              onChange={handleChange}
-              required 
-              placeholder="••••••••"
-              minLength={6}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="confirm_password">Confirm Password</label>
-            <input 
-              type="password" 
-              id="confirm_password" 
-              className="form-control" 
-              value={formData.confirm_password}
-              onChange={handleChange}
-              required 
-              placeholder="••••••••"
-              minLength={6}
-            />
-          </div>
-
-          <button type="submit" className="btn btn-primary" disabled={loading || success} style={{ marginTop: '0.5rem', background: 'var(--secondary)' }}>
-            {loading ? 'Creating Account...' : 'Sign Up'}
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading || !!success}
+            style={{
+              marginTop: '0.5rem', width: '100%',
+              fontSize: '1rem', padding: '0.95rem',
+              background: 'linear-gradient(135deg, #059669, #047857)',
+              boxShadow: '0 8px 24px rgba(5,150,105,0.4)',
+            }}
+          >
+            {loading ? 'Creating Account…' : <><span>Sign Up</span> <ArrowRight size={18} /></>}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-          Already have an account? <Link to="/login" style={{ color: 'var(--secondary)' }}>Log in here</Link>
+          Already have an account?{' '}
+          <Link to="/login" style={{ color: '#34D399', fontWeight: 600 }}>Log in here</Link>
         </p>
       </div>
     </div>
